@@ -6,9 +6,10 @@ __pycache__/
 .venv/
 
 # Training artifacts
-checkpoints/
 results/
 logs/
+
+
 
 # Ignore datasets but keep code
 data/cifar-10-batches-py/
