@@ -1,0 +1,175 @@
+import argparse
+import os
+from typing import Optional, Tuple
+
+import numpy as np
+
+from client.client import FederatedClient
+from client.embedding_extractor import extract_embeddings
+from client.trainer import evaluate
+from common.serialization import serialize_ndarray
+from config import (
+    DEVICE,
+    SERVER_ADDRESS,
+    MAX_TEST_SAMPLES,
+    BATCH_SIZE,
+    NUM_WORKERS,
+    get_dataset_config,
+)
+from proto import expert_matching_pb2 as pb2
+
+
+def _build_test_loader(
+    *,
+    dataset_name: str,
+    corruption: str,
+    severity: int,
+    batch_size: int,
+    num_workers: int,
+    data_root: str,
+    frost_dir: str,
+):
+    ds = dataset_name.strip().lower()
+    if ds in {"cifar10c", "cifar10"}:
+        from data.cifar10c import make_loaders
+
+        loaders = make_loaders(
+            corruption=corruption,
+            cifar10_root="data",
+            batch_size=batch_size,
+            seed=42,
+            num_workers=num_workers,
+            frost_dir=frost_dir,
+            splits=["test"],
+            severity=severity,
+        )
+        return loaders["test"]
+
+    if ds in {"tinyimagenetc", "tinyimagenet", "tiny-imagenet"}:
+        from data.tinyimagenetc import make_loaders
+
+        loaders = make_loaders(
+            corruption=corruption,
+            data_root=data_root,
+            batch_size=batch_size,
+            seed=42,
+            num_workers=num_workers,
+            frost_dir=frost_dir,
+            splits=["test"],
+            severity=severity,
+        )
+        return loaders["test"]
+
+    raise ValueError(f"Unknown dataset_name: {dataset_name}")
+
+
+def _match_expert(client: FederatedClient, embeddings: np.ndarray) -> Tuple[str, float]:
+    emb_bytes, emb_shape = serialize_ndarray(embeddings)
+    resp = client.stub.MatchExpert(
+        pb2.ExpertMatchRequest(
+            client_id=client.client_id,
+            test_embeddings=emb_bytes,
+            embedding_shape=emb_shape,
+        )
+    )
+    return resp.best_expert_id, float(resp.best_mmd)
+
+
+def main(argv: Optional[list] = None) -> int:
+    ap = argparse.ArgumentParser(description="ShiftEx client pod entrypoint.")
+    ap.add_argument("--mode", type=str, default=os.getenv("MODE", "full"), choices=["train", "infer", "full"])
+    ap.add_argument("--client_id", type=str, default=os.getenv("CLIENT_ID", "client"))
+    ap.add_argument("--server_address", type=str, default=os.getenv("SERVER_ADDRESS", SERVER_ADDRESS))
+    ap.add_argument("--dataset", type=str, default=os.getenv("DATASET", "cifar10c"), choices=["cifar10c", "tinyimagenetc"])
+    ap.add_argument("--device", type=str, default=os.getenv("DEVICE", DEVICE))
+    ap.add_argument("--train_corruption", type=str, default=os.getenv("TRAIN_CORRUPTION", ""))
+    ap.add_argument("--seed", type=int, default=int(os.getenv("SEED", "0")))
+    ap.add_argument("--batch_size", type=int, default=int(os.getenv("BATCH_SIZE", str(BATCH_SIZE))))
+    ap.add_argument("--num_workers", type=int, default=int(os.getenv("NUM_WORKERS", str(NUM_WORKERS))))
+    ap.add_argument("--max_test_samples", type=int, default=int(os.getenv("MAX_TEST_SAMPLES", str(MAX_TEST_SAMPLES))))
+    args = ap.parse_args(argv)
+
+    ds = get_dataset_config(args.dataset)
+    frost_dir = ds.get("frost_dir", "data/frost_images")
+    data_root = ds.get("data_root", "")
+
+    print(f"client_id       : {args.client_id}")
+    print(f"mode            : {args.mode}")
+    print(f"dataset         : {args.dataset}")
+    print(f"device          : {args.device}")
+    print(f"server_address  : {args.server_address}")
+    print(f"train_corruption: {args.train_corruption or '(none)'}")
+
+    client = FederatedClient(
+        client_id=args.client_id,
+        server_address=args.server_address,
+        device=args.device,
+        dataset_name=args.dataset,
+    )
+
+    try:
+        if args.mode in {"train", "full"}:
+            if not args.train_corruption:
+                raise SystemExit("TRAIN_CORRUPTION is required for mode=train/full.")
+            client.train_and_register(args.train_corruption, dataset_name=args.dataset, seed=args.seed)
+
+        if args.mode in {"infer", "full"}:
+            assigned_corr, severity = client.request_test_data_assignment()
+            if not assigned_corr or severity <= 0:
+                raise SystemExit("AssignTestData failed (empty corruption or severity).")
+
+            print(f"[{client.client_id}] Assigned test set: corruption={assigned_corr} severity={severity}")
+
+            test_loader = _build_test_loader(
+                dataset_name=args.dataset,
+                corruption=assigned_corr,
+                severity=severity,
+                batch_size=args.batch_size,
+                num_workers=args.num_workers,
+                data_root=data_root,
+                frost_dir=frost_dir,
+            )
+
+            print(f"[{client.client_id}] Extracting test embeddings ...")
+            test_embeddings = extract_embeddings(
+                client.router,
+                test_loader,
+                device=args.device,
+                max_samples=args.max_test_samples,
+            )
+            print(f"[{client.client_id}] Test embeddings shape={test_embeddings.shape}")
+
+            shift_detected, p_val, drift_dist = client.shift_detector.detect_shift(test_embeddings)
+            print(f"[{client.client_id}] Shift test: shift={shift_detected} p={p_val:.6f} dist={drift_dist:.6f}")
+
+            matched_expert = client.current_expert_id or ""
+            best_mmd = float(drift_dist)
+
+            if shift_detected:
+                matched_expert, best_mmd = _match_expert(client, test_embeddings)
+                print(f"[{client.client_id}] Server match: expert={matched_expert} mmd={best_mmd:.6f}")
+                if matched_expert and matched_expert != client.current_expert_id:
+                    client.download_and_load_expert(matched_expert)
+
+            acc = evaluate(client.model, test_loader, device=args.device)
+            correct = bool(matched_expert == assigned_corr)
+            print(f"[{client.client_id}] Final: matched={matched_expert} assigned={assigned_corr} acc={acc:.4f} correct={correct}")
+
+            status = client.report_result(
+                assigned_corruption=assigned_corr,
+                matched_expert=matched_expert,
+                accuracy=float(acc),
+                mmd_distance=float(best_mmd),
+                shift_detected=bool(shift_detected),
+                correct_match=bool(correct),
+            )
+            print(f"[{client.client_id}] ReportResult status: {status}")
+
+    finally:
+        client.close()
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,26 @@
+# Core ML
+torch
+torchvision
+
+# Numerical computing — pinned for alibi-detect compatibility
+numpy>=1.26.0,<2.0.0
+
+# Progress bars
+tqdm
+
+# Distribution shift detection — pinned version, pytorch backend only
+alibi-detect[torch]==0.12.0
+
+# Image processing
+scipy
+scikit-image
+opencv-python
+Wand
+
+# Data
+pandas
+
+# gRPC communication
+grpcio>=1.78.0
+grpcio-tools>=1.78.0
+protobuf>=3.20.3,<4.0.0

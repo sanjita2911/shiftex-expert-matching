@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package shiftex;
+
+service ExpertMatchingService {
+  rpc RegisterExpert(ExpertRegistrationRequest) returns (ExpertRegistrationResponse);
+  rpc AssignTestData(TestDataRequest) returns (TestDataResponse);
+  rpc MatchExpert(ExpertMatchRequest) returns (ExpertMatchResponse);
+  rpc DownloadExpertModel(ModelDownloadRequest) returns (ModelDownloadResponse);
+  rpc ListExperts(ListExpertsRequest) returns (ListExpertsResponse);
+  rpc ReportResult(ResultRequest) returns (ResultResponse);
+}
+
+message ExpertRegistrationRequest {
+  string client_id = 1;
+  string expert_id = 2;                // "fog", "snow", "blur"
+  bytes model_weights = 3;             // dummy bytes now, torch bytes later
+  bytes signature_embeddings = 4;      // dummy bytes now, numpy bytes later
+  repeated int32 embedding_shape = 5;  // e.g. [N, 2048]
+}
+
+message ExpertRegistrationResponse {
+  string status = 1;   // "OK" or error message
+}
+
+message TestDataRequest {
+  string client_id = 1;
+}
+
+message TestDataResponse {
+  string corruption = 1;
+  int32 severity = 2;
+}
+
+message ExpertMatchRequest {
+  string client_id = 1;
+  bytes test_embeddings = 2;
+  repeated int32 embedding_shape = 3;
+}
+
+message ExpertMatchResponse {
+  string best_expert_id = 1;
+  float best_mmd = 2;
+  map<string, float> all_mmd_scores = 3;
+}
+
+message ModelDownloadRequest {
+  string expert_id = 1;
+}
+
+message ModelDownloadResponse {
+  bytes model_weights = 1;
+}
+
+message ListExpertsRequest {}
+
+message ListExpertsResponse {
+  repeated string expert_ids = 1;
+}
+
+message ResultRequest {
+  string client_id = 1;
+  string assigned_corruption = 2;
+  string matched_expert = 3;
+  float accuracy = 4;
+  float mmd_distance = 5;
+  bool shift_detected = 6;
+  bool correct_match = 7;
+}
+
+message ResultResponse {
+  string status = 1;
+}

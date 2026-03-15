@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shiftex-client
+  labels:
+    app: shiftex-client
+spec:
+  restartPolicy: Never
+  containers:
+    - name: client
+      image: shiftex:latest
+      imagePullPolicy: IfNotPresent
+      command: ["python3", "run_client.py"]
+      env:
+        - name: SERVER_ADDRESS
+          value: "shiftex-server:50051"
+        - name: MODE
+          value: "full"
+        - name: DATASET
+          value: "cifar10c"
+        - name: DEVICE
+          value: "cuda"
+        - name: CLIENT_ID
+          value: "client"
+        - name: TRAIN_CORRUPTION
+          value: "fog"
+      resources:
+        limits:
+          nvidia.com/gpu: "1"
+          cpu: "4"
+          memory: "16Gi"
+        requests:
+          nvidia.com/gpu: "1"
+          cpu: "2"
+          memory: "8Gi"
+

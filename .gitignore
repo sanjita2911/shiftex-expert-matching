@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+
+# Training artifacts
+checkpoints/
+results/
+logs/
+
+# Ignore datasets but keep code
+data/cifar-10-batches-py/
+data/cifar10c/
+
+# OS
+.DS_Store
+
+# model weights
+*.pt
+*.pth
+*.ckpt

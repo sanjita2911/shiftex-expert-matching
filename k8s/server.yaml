@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shiftex-server
+  labels:
+    app: shiftex-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shiftex-server
+  template:
+    metadata:
+      labels:
+        app: shiftex-server
+    spec:
+      containers:
+        - name: server
+          image: shiftex:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "server/server.py"]
+          ports:
+            - name: grpc
+              containerPort: 50051
+          env:
+            - name: EXPECTED_CLIENTS
+              value: "4"
+            - name: ASSIGNMENT_SEED
+              value: "0"
+            - name: SEVERITY
+              value: "5"
+          resources:
+            requests:
+              cpu: "1"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shiftex-server
+  labels:
+    app: shiftex-server
+spec:
+  type: ClusterIP
+  selector:
+    app: shiftex-server
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: 50051
+
