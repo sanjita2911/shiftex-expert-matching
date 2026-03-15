@@ -22,3 +22,5 @@ data/cifar10c/
 *.pt
 *.pth
 *.ckpt
+!checkpoints/router_resnet50_cifar10.pt
+!checkpoints/router_resnet50_tinyimagenet.pt
