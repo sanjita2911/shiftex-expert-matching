@@ -24,3 +24,5 @@ pandas
 grpcio>=1.78.0
 grpcio-tools>=1.78.0
 protobuf>=3.20.3,<4.0.0
+
+kagglehub
