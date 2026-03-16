@@ -260,7 +260,7 @@ def frost(x, severity=1, frost_dir="data/frost_images"):
         "frost1.png", "frost2.png", "frost3.png",
         "frost4.jpg", "frost5.jpg", "frost6.jpg",
     ]
-    idx = np.random.randint(5)
+    idx = np.random.randint(6)
     filename = os.path.join(frost_dir, frost_files[idx])
 
     if not os.path.exists(filename):
@@ -512,7 +512,7 @@ def apply_corruption(
     if corruption in _PIL_INPUT:
         inp = pil_img
     else:
-        inp = pil_img
+        inp = np.array(pil_img)
 
     if corruption in _NEEDS_FROST_DIR:
         result = fn(inp, severity=severity, frost_dir=frost_dir)

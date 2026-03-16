@@ -129,6 +129,32 @@ def main(argv: Optional[list] = None) -> int:
                     default=int(os.getenv("MAX_TEST_SAMPLES", str(MAX_TEST_SAMPLES))))
     args = ap.parse_args(argv)
 
+    # ------------------------------------------------------------------
+    # mode=infer requires a pre-existing shift-detector baseline.
+    # That baseline is set during train_and_register() (mode=train/full).
+    # Running infer without a prior training phase means no baseline exists,
+    # so detect_shift() will always return (False, 1.0, 0.0) and expert
+    # matching will never trigger — the client would just run inference
+    # with an untrained model and report wrong results silently.
+    #
+    # On Nautilus every pod starts fresh (no persistent state between runs),
+    # so mode=infer alone is never valid there. Always use mode=full.
+    #
+    # mode=infer is only meaningful if you re-use a long-lived process that
+    # already called train_and_register() earlier in the same session
+    # (e.g. interactive local testing). Guard against accidental misuse here.
+    # ------------------------------------------------------------------
+    if args.mode == "infer" and not args.train_corruption:
+        # No training corruption supplied — warn clearly rather than silently
+        # producing wrong results.
+        print(
+            "[warning] mode=infer with no prior training session: "
+            "shift_detector has no baseline, so shift will never be detected "
+            "and MatchExpert will not be called. "
+            "Use mode=full to train and infer in the same run, "
+            "or supply --train_corruption and run mode=train first."
+        )
+
     ds = get_dataset_config(args.dataset)
     frost_dir = ds.get("frost_dir", "data/frost_images")
     data_root = ds.get("data_root", "")
@@ -191,10 +217,21 @@ def main(argv: Optional[list] = None) -> int:
             print(
                 f"[{client.client_id}] Shift test: shift={shift_detected} p={p_val:.6f} dist={drift_dist:.6f}")
 
+            # If no baseline exists (mode=infer without prior training),
+            # detect_shift() returns (False, 1.0, 0.0) — skip the MMD
+            # gating entirely and go straight to server matching so the
+            # experiment still produces a meaningful result.
+            no_baseline = not client.shift_detector.has_baseline()
+            if no_baseline:
+                print(
+                    f"[{client.client_id}] No shift-detector baseline — "
+                    "skipping local MMD test, calling MatchExpert directly."
+                )
+
             matched_expert = client.current_expert_id or ""
             best_mmd = float(drift_dist)
 
-            if shift_detected:
+            if shift_detected or no_baseline:
                 matched_expert, best_mmd = _match_expert(
                     client, test_embeddings)
                 print(
