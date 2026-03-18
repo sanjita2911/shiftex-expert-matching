@@ -10,7 +10,7 @@ SERVER_READY_WAIT=15
 
 # Start server in background (CPU only)
 echo "[launcher] Starting server..."
-python3 server/server.py &
+python3 -m server.server &
 SERVER_PID=$!
 echo "[launcher] Server PID: $SERVER_PID"
 
