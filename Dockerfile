@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     git \
     ca-certificates \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps
