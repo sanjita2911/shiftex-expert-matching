@@ -35,8 +35,14 @@ class ExpertMatchingService(pb2_grpc.ExpertMatchingServiceServicer):
         self._results = {}  # client_id -> dict
         self._expected_clients = int(os.getenv("EXPECTED_CLIENTS", "4"))
 
-        # Log loaded experts
+        # Barrier: MatchExpert blocks until all expected experts are registered.
+        self._all_experts_ready = threading.Event()
         expert_ids = self.registry.list_ids()
+        if len(expert_ids) >= self._expected_clients:
+            self._all_experts_ready.set()
+            print(f"[server] All {self._expected_clients} experts already present — barrier open")
+
+        # Log loaded experts
         if expert_ids:
             print(
                 f"[server] Loaded {len(expert_ids)} existing experts: {expert_ids}")
@@ -53,6 +59,10 @@ class ExpertMatchingService(pb2_grpc.ExpertMatchingServiceServicer):
         )
         print(
             f"[server] registered expert={request.expert_id} from client={request.client_id}")
+        # Open barrier once all expected experts are present
+        if len(self.registry.list_ids()) >= self._expected_clients:
+            self._all_experts_ready.set()
+            print(f"[server] All {self._expected_clients} experts registered — barrier open")
         return pb2.ExpertRegistrationResponse(status="OK")
 
     def AssignTestData(self, request, context):
@@ -107,8 +117,16 @@ class ExpertMatchingService(pb2_grpc.ExpertMatchingServiceServicer):
         """
         Match client's test embeddings to the best expert using MMD.
 
-        This is the REAL implementation using Maximum Mean Discrepancy.
+        Blocks until all expected experts are registered (avoids race where
+        fast clients call MatchExpert before slow experts exist).
         """
+        timeout = int(os.getenv("MATCH_EXPERT_WAIT_TIMEOUT", "3600"))
+        if not self._all_experts_ready.wait(timeout=timeout):
+            print(
+                f"[server] WARNING: MatchExpert timed out after {timeout}s waiting for "
+                f"{self._expected_clients} experts. Proceeding with {len(self.registry.list_ids())} available."
+            )
+
         expert_ids = self.registry.list_ids()
 
         # Check if we have any experts registered
