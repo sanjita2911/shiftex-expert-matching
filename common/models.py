@@ -9,8 +9,6 @@ class ResNet50CIFAR(nn.Module):
         super().__init__()
         m = resnet50(weights=None)
 
-        # CIFAR adaptation: smaller conv1, no maxpool
-        # needed because CIFAR images are 32x32
         m.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1,
                             padding=1, bias=False)
         m.maxpool = nn.Identity()
@@ -83,14 +81,7 @@ def get_model(
     num_classes: Optional[int] = None,
     pretrained: bool = False,
 ) -> nn.Module:
-    """
-    Model factory used by unified scripts.
 
-    Args:
-        dataset_name: "cifar10c" or "tinyimagenetc" (case-insensitive)
-        num_classes: override number of classes (defaults: 10 for CIFAR-10, 200 for TinyImageNet)
-        pretrained: whether to load ImageNet weights (TinyImageNet only)
-    """
     name = dataset_name.strip().lower()
 
     if name in {"cifar10c", "cifar10"}:

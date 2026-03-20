@@ -1,18 +1,3 @@
-"""
-data/tinyimagenetc.py
-
-Tiny-ImageNet-C style utilities for ShiftEx.
-
-Tiny-ImageNet provides train/val splits (no official test labels). In this repo
-we treat the Tiny-ImageNet validation set as the held-out "test" split for the
-expert-matching experiments.
-
-This module is a cleaned version of data/tinyimagenet_corrupt_dataset.py:
-- More robust class discovery (ignores non-directory entries like .DS_Store)
-- Clearer parameterization (severity/train_size/val_size)
-- Same default behavior and returned keys from make_loaders()
-"""
-
 from __future__ import annotations
 
 import os
@@ -29,22 +14,16 @@ from data.corruptions import apply_corruption
 
 
 DEFAULT_SEVERITY = 5
-DEFAULT_TRAIN_SIZE = 80_000  # first 80k of 100k train images -> expert train
-DEFAULT_VAL_SIZE = 20_000    # last  20k of 100k train images -> expert val
-IMG_SIZE = 64                # Tiny-ImageNet native resolution
+DEFAULT_TRAIN_SIZE = 80_000
+DEFAULT_VAL_SIZE = 20_000
+IMG_SIZE = 64
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
-# ---------------------------------------------------------------------------
-# Raw data loaders
-# ---------------------------------------------------------------------------
-
-
 def _list_train_classes(train_dir: str) -> List[str]:
-    # Tiny-ImageNet train/ contains one directory per synset (class).
-    # Filter to directories to avoid accidental files affecting label indices.
+
     entries = []
     for name in sorted(os.listdir(train_dir)):
         path = os.path.join(train_dir, name)
@@ -72,7 +51,8 @@ def _load_train_images(data_root: str) -> Tuple[np.ndarray, List[int]]:
             images.append(np.array(img, dtype=np.uint8))
             labels.append(class_to_idx[cls])
 
-    print(f"[_load_train_images] Loaded {len(images)} train images, {len(classes)} classes")
+    print(
+        f"[_load_train_images] Loaded {len(images)} train images, {len(classes)} classes")
     return np.stack(images, axis=0), labels
 
 
@@ -107,11 +87,6 @@ def _load_val_images(data_root: str) -> Tuple[np.ndarray, List[int]]:
 
     print(f"[_load_val_images] Loaded {len(images)} val images")
     return np.stack(images, axis=0), labels
-
-
-# ---------------------------------------------------------------------------
-# Dataset
-# ---------------------------------------------------------------------------
 
 
 class CorruptedTinyImageNet(Dataset):
@@ -167,11 +142,6 @@ class CorruptedTinyImageNet(Dataset):
         return img, self.labels[idx]
 
 
-# ---------------------------------------------------------------------------
-# Factory
-# ---------------------------------------------------------------------------
-
-
 def make_loaders(
     corruption: str,
     data_root: str = "data/tiny-imagenet-200",
@@ -205,7 +175,8 @@ def make_loaders(
     need_train_src = "train" in splits or "val" in splits
     need_test_src = "test" in splits
 
-    train_images, train_labels = _load_train_images(data_root) if need_train_src else (None, None)
+    train_images, train_labels = _load_train_images(
+        data_root) if need_train_src else (None, None)
 
     if need_train_src:
         rng = np.random.default_rng(seed)
@@ -213,7 +184,8 @@ def make_loaders(
         train_images = train_images[idx]
         train_labels = [train_labels[i] for i in idx]
 
-    test_images, test_labels = _load_val_images(data_root) if need_test_src else (None, None)
+    test_images, test_labels = _load_val_images(
+        data_root) if need_test_src else (None, None)
 
     result = {}
 
@@ -284,4 +256,3 @@ __all__ = [
     "CorruptedTinyImageNet",
     "make_loaders",
 ]
-

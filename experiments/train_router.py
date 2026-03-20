@@ -1,3 +1,6 @@
+from config import DEVICE, BATCH_SIZE, NUM_WORKERS, get_dataset_config
+from common.models import ResNet50CIFAR, ResNet50TinyImageNet
+from client.trainer import train_model
 import argparse
 import os
 import sys
@@ -11,19 +14,8 @@ from torchvision.datasets import ImageFolder
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from client.trainer import train_model
-from common.models import ResNet50CIFAR, ResNet50TinyImageNet
-from config import DEVICE, BATCH_SIZE, NUM_WORKERS, get_dataset_config
-
 
 class TinyImageNetValDataset(Dataset):
-    """
-    Tiny-ImageNet validation loader.
-
-    The val split stores all images in a flat directory with labels in
-    val/val_annotations.txt. We map synset IDs to class indices using the same
-    mapping as ImageFolder(train/).
-    """
 
     def __init__(self, val_dir: str, class_to_idx: dict, transform=None):
         self.transform = transform
@@ -33,7 +25,8 @@ class TinyImageNetValDataset(Dataset):
         ann_file = os.path.join(val_dir, "val_annotations.txt")
 
         if not os.path.exists(ann_file):
-            raise FileNotFoundError(f"val_annotations.txt not found at {ann_file}")
+            raise FileNotFoundError(
+                f"val_annotations.txt not found at {ann_file}")
 
         fname_to_synset = {}
         with open(ann_file, "r") as f:
@@ -53,7 +46,8 @@ class TinyImageNetValDataset(Dataset):
             label = int(class_to_idx[synset])
             self.samples.append((os.path.join(img_dir, fname), label))
 
-        print(f"[TinyImageNetValDataset] Loaded {len(self.samples)} val images")
+        print(
+            f"[TinyImageNetValDataset] Loaded {len(self.samples)} val images")
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -116,9 +110,11 @@ def _build_tinyimagenet_loaders(
     val_dir = os.path.join(data_root, "val")
 
     if not os.path.isdir(train_dir):
-        raise FileNotFoundError(f"Tiny-ImageNet train directory not found: {train_dir}")
+        raise FileNotFoundError(
+            f"Tiny-ImageNet train directory not found: {train_dir}")
     if not os.path.isdir(val_dir):
-        raise FileNotFoundError(f"Tiny-ImageNet val directory not found: {val_dir}")
+        raise FileNotFoundError(
+            f"Tiny-ImageNet val directory not found: {val_dir}")
 
     train_tfm = T.Compose(
         [
@@ -143,7 +139,8 @@ def _build_tinyimagenet_loaders(
         transform=val_tfm,
     )
 
-    print(f"[TinyImageNet] Train set: {len(train_ds)} images, {len(train_ds.classes)} classes")
+    print(
+        f"[TinyImageNet] Train set: {len(train_ds)} images, {len(train_ds.classes)} classes")
 
     train_loader = DataLoader(
         train_ds,
@@ -163,8 +160,10 @@ def _build_tinyimagenet_loaders(
 
 
 def main(argv: Optional[list] = None) -> int:
-    ap = argparse.ArgumentParser(description="Train a frozen router (ResNet-50) for ShiftEx.")
-    ap.add_argument("--dataset", type=str, default="cifar10c", choices=["cifar10c", "tinyimagenetc"])
+    ap = argparse.ArgumentParser(
+        description="Train a frozen router (ResNet-50) for ShiftEx.")
+    ap.add_argument("--dataset", type=str, default="cifar10c",
+                    choices=["cifar10c", "tinyimagenetc"])
     ap.add_argument("--device", type=str, default=DEVICE)
     ap.add_argument("--batch_size", type=int, default=BATCH_SIZE)
     ap.add_argument("--num_workers", type=int, default=NUM_WORKERS)
@@ -174,7 +173,8 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--patience", type=int, default=0)
     ap.add_argument("--data_root", type=str, default="")
     ap.add_argument("--ckpt_path", type=str, default="")
-    ap.add_argument("--no_pretrained", action="store_true", help="TinyImageNet only: start from random weights")
+    ap.add_argument("--no_pretrained", action="store_true",
+                    help="TinyImageNet only: start from random weights")
     args = ap.parse_args(argv)
 
     ds = get_dataset_config(args.dataset)
@@ -182,7 +182,8 @@ def main(argv: Optional[list] = None) -> int:
 
     epochs = args.epochs or int(ds.get("router_epochs", ds.get("epochs", 50)))
     lr = args.lr or float(ds.get("router_lr", ds.get("lr", 1e-3)))
-    weight_decay = args.weight_decay or float(ds.get("router_weight_decay", ds.get("weight_decay", 1e-4)))
+    weight_decay = args.weight_decay or float(
+        ds.get("router_weight_decay", ds.get("weight_decay", 1e-4)))
     patience = args.patience or int(ds.get("patience", 5))
 
     os.makedirs(os.path.dirname(ckpt_path) or ".", exist_ok=True)
@@ -204,7 +205,8 @@ def main(argv: Optional[list] = None) -> int:
         )
         model = ResNet50CIFAR(num_classes=int(ds.get("num_classes", 10)))
     else:
-        data_root = args.data_root or ds.get("data_root", "data/tiny-imagenet-200")
+        data_root = args.data_root or ds.get(
+            "data_root", "data/tiny-imagenet-200")
         print(f"Data root   : {data_root}")
         train_loader, val_loader = _build_tinyimagenet_loaders(
             data_root=data_root,

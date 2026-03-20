@@ -5,7 +5,6 @@ from common.mmd import alibi_mmd_predict
 
 class ShiftDetector:
     def __init__(self, alpha: float = 0.05):
-        # Alibi decision threshold (p-value cutoff)
         self.alpha = float(alpha)
         self.baseline_embeddings: Optional[np.ndarray] = None
         self.current_expert_id: Optional[str] = None
@@ -18,11 +17,9 @@ class ShiftDetector:
         if self.baseline_embeddings is None:
             return False, 1.0, 0.0
 
-        # Ensure consistent dtype
         x_ref = np.asarray(self.baseline_embeddings, dtype=np.float32)
         x_test = np.asarray(new_embeddings, dtype=np.float32)
 
-        # baseline MUST be reference for Alibi
         res = alibi_mmd_predict(x_ref, x_test, alpha=self.alpha)
 
         is_drift = bool(res["data"]["is_drift"])

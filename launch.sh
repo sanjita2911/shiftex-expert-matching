@@ -7,7 +7,6 @@ echo "========================================"
 
 SERVER_READY_WAIT=15
 
-# Start server in background (CPU only)
 echo "[launcher] Starting server..."
 python3 -m server.server &
 SERVER_PID=$!
@@ -16,7 +15,6 @@ echo "[launcher] Server PID: $SERVER_PID"
 echo "[launcher] Waiting ${SERVER_READY_WAIT}s for server to be ready..."
 sleep $SERVER_READY_WAIT
 
-# 4 clients, each on its own dedicated GPU
 echo "[launcher] Starting 4 clients, 1 GPU each..."
 
 CORRUPTIONS=(

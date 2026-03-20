@@ -38,7 +38,8 @@ def median_heuristic_sigma(
 
     x = torch.from_numpy(np.asarray(pooled, dtype=np.float32))
     dists = torch.cdist(x, x, p=2.0)
-    tri = dists[torch.triu(torch.ones_like(dists, dtype=torch.bool), diagonal=1)]
+    tri = dists[torch.triu(torch.ones_like(
+        dists, dtype=torch.bool), diagonal=1)]
     med = float(torch.median(tri).item())
     if (not np.isfinite(med)) or med <= 0:
         return 1.0
@@ -56,9 +57,7 @@ def mmd_rbf_unbiased(
     sigma: float,
     device: str = "cpu",
 ) -> float:
-    """
-    Unbiased MMD^2 with fixed RBF sigma. Returns sqrt(clamp(MMD^2, 0)).
-    """
+
     x = torch.from_numpy(np.asarray(x_ref, dtype=np.float32)).to(device)
     y = torch.from_numpy(np.asarray(x_test, dtype=np.float32)).to(device)
 

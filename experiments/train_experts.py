@@ -1,17 +1,16 @@
-import argparse
-import os
-import sys
-from typing import List, Optional
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from client.client import FederatedClient
 from config import (
     CORRUPTIONS_4,
     CORRUPTIONS_15,
     DEVICE,
     SERVER_ADDRESS,
 )
+from client.client import FederatedClient
+import argparse
+import os
+import sys
+from typing import List, Optional
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def _parse_corruptions(arg: Optional[str], use_15: bool) -> List[str]:
@@ -25,7 +24,8 @@ def main(argv: Optional[list] = None) -> int:
     ap = argparse.ArgumentParser(
         description="Train corruption experts and register them to the ShiftEx gRPC server."
     )
-    ap.add_argument("--dataset", type=str, default="cifar10c", choices=["cifar10c", "tinyimagenetc"])
+    ap.add_argument("--dataset", type=str, default="cifar10c",
+                    choices=["cifar10c", "tinyimagenetc"])
     ap.add_argument("--server_address", type=str, default=SERVER_ADDRESS)
     ap.add_argument("--device", type=str, default=DEVICE)
     ap.add_argument("--client_id", type=str, default="client")
@@ -53,8 +53,6 @@ def main(argv: Optional[list] = None) -> int:
     print(f"Seed          : {args.seed}")
     print(f"Corruptions   : {corruptions}")
 
-    # One client instance; we vary the client_id per corruption so the server
-    # logs remain readable and stable for retries.
     client = FederatedClient(
         client_id=args.client_id,
         server_address=args.server_address,
@@ -64,12 +62,13 @@ def main(argv: Optional[list] = None) -> int:
 
     try:
         for i, corr in enumerate(corruptions):
-            # Derive a unique client id per expert for traceability.
             client.client_id = f"{args.client_id}_{corr}"
             print("\n" + "=" * 80)
-            print(f"Training + registering expert: {corr} ({i+1}/{len(corruptions)})")
+            print(
+                f"Training + registering expert: {corr} ({i+1}/{len(corruptions)})")
             print("=" * 80)
-            client.train_and_register(corr, dataset_name=args.dataset, seed=args.seed)
+            client.train_and_register(
+                corr, dataset_name=args.dataset, seed=args.seed)
     finally:
         client.close()
 
@@ -78,4 +77,3 @@ def main(argv: Optional[list] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

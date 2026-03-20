@@ -1,20 +1,3 @@
-"""
-data/cifar10c.py
-
-Unified CIFAR-10 corruption data utilities.
-
-This module merges the two historical code paths in this repo:
-1) CIFAR-10-C (precomputed .npy files, 10k images per severity level)
-   - Previously: data/cifar10c_loader.py
-2) In-memory corruption of torchvision CIFAR-10 via our corruption functions
-   - Previously: data/cifar10_corrupt_dataset.py
-
-Keeping both is useful:
-- CIFAR-10-C .npy is convenient for fast experiments over many corruptions.
-- In-memory corruption matches the "4 corruption" expert setup and provides
-  explicit train/val/test splits for early stopping.
-"""
-
 from __future__ import annotations
 
 import os
@@ -28,19 +11,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from data.corruptions import apply_corruption
 
-# ---------------------------------------------------------------------------
-# CIFAR-10-C (.npy) loader
-# ---------------------------------------------------------------------------
-
 
 class CIFAR10CDataset(Dataset):
-    """
-    Loads one CIFAR-10-C corruption at a specific severity from .npy files.
-
-    The CIFAR-10-C format stores 50k images per corruption:
-    - 10k images for each severity in [1..5]
-    - aligned with the CIFAR-10 test labels (labels.npy)
-    """
 
     def __init__(
         self,
@@ -115,10 +87,6 @@ def make_loader(
     test_size: int = 2000,
     transform=None,
 ) -> DataLoader:
-    """
-    Builds a DataLoader for the CIFAR-10-C .npy dataset.
-    Kept for backward compatibility with the existing scripts.
-    """
 
     dataset = CIFAR10CDataset(
         root=root,
@@ -140,29 +108,12 @@ def make_loader(
     )
 
 
-# ---------------------------------------------------------------------------
-# In-memory corruption loader (train/val/test splits)
-# ---------------------------------------------------------------------------
-
-
 DEFAULT_SEVERITY = 5
 DEFAULT_TRAIN_SIZE = 40_000
 DEFAULT_VAL_SIZE = 10_000
 
 
 class CorruptedCIFAR10(Dataset):
-    """
-    Applies a corruption in memory at construction time and caches the result.
-
-    Args:
-        images     : uint8 numpy array, shape (N, 32, 32, 3)
-        labels     : list or array of int labels, length N
-        corruption : corruption name supported by data.corruptions.apply_corruption
-        severity   : 1-5
-        transform  : torchvision transform applied after corruption
-        frost_dir  : path to frost overlay images (frost only)
-        seed       : numpy random seed for reproducible corruptions
-    """
 
     def __init__(
         self,
@@ -232,13 +183,7 @@ def make_loaders(
     train_size: int = DEFAULT_TRAIN_SIZE,
     val_size: int = DEFAULT_VAL_SIZE,
 ) -> dict:
-    """
-    Build DataLoaders for one corruption type, optionally including train/val/test.
 
-    This is the "expert training" path: corrupts CIFAR-10 in memory and returns
-    explicit splits. When requesting only ["test"], it avoids corrupting the
-    CIFAR-10 train images.
-    """
     if splits is None:
         splits = ["train", "val", "test"]
 
@@ -255,12 +200,14 @@ def make_loaders(
     need_test_src = "test" in splits
 
     raw_train = (
-        torchvision.datasets.CIFAR10(root=cifar10_root, train=True, download=True)
+        torchvision.datasets.CIFAR10(
+            root=cifar10_root, train=True, download=True)
         if need_train_src
         else None
     )
     raw_test = (
-        torchvision.datasets.CIFAR10(root=cifar10_root, train=False, download=True)
+        torchvision.datasets.CIFAR10(
+            root=cifar10_root, train=False, download=True)
         if need_test_src
         else None
     )
@@ -336,4 +283,3 @@ __all__ = [
     "CorruptedCIFAR10",
     "make_loaders",
 ]
-

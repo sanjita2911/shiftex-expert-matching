@@ -1,30 +1,3 @@
-"""
-corruptions.py
-
-All 15 CIFAR-10-C corruption functions copied exactly from the original
-paper code (hendrycks/robustness).
-
-Corruptions:
-    Noise   : gaussian_noise, shot_noise, impulse_noise
-    Blur    : defocus_blur, glass_blur, motion_blur, zoom_blur, gaussian_blur
-    Weather : fog, frost, snow, brightness
-    Digital : contrast, elastic_transform, pixelate, jpeg_compression
-
-Each function:
-    Input  : PIL Image (32x32 RGB)
-    Output : float32 numpy array in [0, 255], shape (32, 32, 3)
-             Cast to uint8 before saving / passing to ToTensor.
-
-Dependencies:
-    pip install numpy opencv-python Pillow Wand scipy scikit-image
-    ImageMagick must also be installed on the system (required by Wand).
-    On Colab: !apt-get install -q libmagickwand-dev
-
-For frost you need 6 overlay images in data/frost_images/.
-Download from:
-    https://github.com/hendrycks/robustness/tree/master/ImageNet-C/create_c/frost
-"""
-
 import ctypes
 import io
 import os
@@ -37,11 +10,6 @@ from scipy.ndimage import map_coordinates
 from skimage.filters import gaussian
 from wand.api import library as wandlibrary
 from wand.image import Image as WandImage
-
-
-# ---------------------------------------------------------------------------
-# Wand motion blur extension  (used by snow and motion_blur)
-# ---------------------------------------------------------------------------
 
 wandlibrary.MagickMotionBlurImage.argtypes = (
     ctypes.c_void_p,   # wand
@@ -56,16 +24,8 @@ class MotionImage(WandImage):
         wandlibrary.MagickMotionBlurImage(self.wand, radius, sigma, angle)
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def plasma_fractal(mapsize=32, wibbledecay=3):
-    """
-    Generate a heightmap using diamond-square algorithm.
-    Returns square 2d array, side length 'mapsize', floats in range 0-1.
-    'mapsize' must be a power of two.
-    """
+
     assert (mapsize & (mapsize - 1) == 0)
     maparray = np.empty((mapsize, mapsize), dtype=np.float64)
     maparray[0, 0] = 0
@@ -122,7 +82,7 @@ def clipped_zoom(img, zoom_factor):
 
 
 def disk(radius, alias_blur=0.1, dtype=np.float32):
-    """Generate a disk-shaped kernel for defocus blur."""
+
     if radius <= 8:
         L = np.arange(-8, 8 + 1)
         ksize = (3, 3)
@@ -134,10 +94,6 @@ def disk(radius, alias_blur=0.1, dtype=np.float32):
     aliased_disk /= np.sum(aliased_disk)
     return cv2.GaussianBlur(aliased_disk, ksize=ksize, sigmaX=alias_blur)
 
-
-# ---------------------------------------------------------------------------
-# Noise corruptions
-# ---------------------------------------------------------------------------
 
 def gaussian_noise(x, severity=1):
     c = [0.04, 0.06, 0.08, 0.09, 0.10][severity - 1]
@@ -159,10 +115,6 @@ def impulse_noise(x, severity=1):
     x = sk_util_random_noise(np.array(x) / 255., mode='s&p', amount=c)
     return np.clip(x, 0, 1) * 255
 
-
-# ---------------------------------------------------------------------------
-# Blur corruptions
-# ---------------------------------------------------------------------------
 
 def defocus_blur(x, severity=1):
     c = [(3, 0.1), (4, 0.5), (6, 0.5), (8, 0.5), (10, 0.5)][severity - 1]
@@ -235,10 +187,6 @@ def gaussian_blur(x, severity=1):
     x = gaussian(np.array(x) / 255., sigma=c, channel_axis=-1)
     return np.clip(x, 0, 1) * 255
 
-
-# ---------------------------------------------------------------------------
-# Weather corruptions
-# ---------------------------------------------------------------------------
 
 def fog(x, severity=1):
     c = [(.2, 3), (.5, 3), (0.75, 2.5), (1, 2), (1.5, 1.75)][severity - 1]
@@ -334,10 +282,6 @@ def brightness(x, severity=1):
     return np.clip(x, 0, 1) * 255
 
 
-# ---------------------------------------------------------------------------
-# Digital corruptions
-# ---------------------------------------------------------------------------
-
 def contrast(x, severity=1):
     c = [.75, .5, .4, .3, 0.15][severity - 1]
 
@@ -407,12 +351,8 @@ def jpeg_compression(x, severity=1):
     return np.clip(np.array(x), 0, 255).astype(np.float32)
 
 
-# ---------------------------------------------------------------------------
-# Colour space helpers (replaces skimage.color to avoid extra dependency)
-# ---------------------------------------------------------------------------
-
 def sk_color_rgb2hsv(img):
-    """Convert RGB image (float32, 0-1) to HSV."""
+
     img_uint8 = (img * 255).astype(np.uint8)
     hsv = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2HSV).astype(np.float32)
     hsv[:, :, 0] /= 179.0   # H: 0-179 in OpenCV
@@ -422,7 +362,6 @@ def sk_color_rgb2hsv(img):
 
 
 def sk_color_hsv2rgb(img):
-    """Convert HSV image (float32, 0-1) to RGB."""
     hsv = img.copy()
     hsv[:, :, 0] = np.clip(hsv[:, :, 0] * 179.0, 0, 179)
     hsv[:, :, 1] = np.clip(hsv[:, :, 1] * 255.0, 0, 255)
@@ -433,7 +372,6 @@ def sk_color_hsv2rgb(img):
 
 
 def sk_util_random_noise(image, mode='gaussian', amount=0.05):
-    """Minimal reimplementation of skimage.util.random_noise for s&p mode."""
     out = image.copy()
     if mode == 's&p':
         # Salt
@@ -447,10 +385,6 @@ def sk_util_random_noise(image, mode='gaussian', amount=0.05):
     return out
 
 
-# ---------------------------------------------------------------------------
-# Dispatcher
-# ---------------------------------------------------------------------------
-
 CORRUPTION_FNS = {
     # Noise
     "gaussian_noise":    gaussian_noise,
@@ -461,7 +395,6 @@ CORRUPTION_FNS = {
     "glass_blur":        glass_blur,
     "motion_blur":       motion_blur,
     "zoom_blur":         zoom_blur,
-    # gaussian_blur removed — not in original CIFAR-10-C 15 corruptions
     # Weather
     "fog":               fog,
     "frost":             frost,
@@ -474,11 +407,8 @@ CORRUPTION_FNS = {
     "jpeg_compression":  jpeg_compression,
 }
 
-# Corruptions that need PIL Image input rather than numpy array
-# (pixelate and jpeg_compression operate on PIL directly)
 _PIL_INPUT = {"pixelate", "jpeg_compression", "motion_blur"}
 
-# Corruptions that need frost_dir argument
 _NEEDS_FROST_DIR = {"frost"}
 
 
@@ -488,18 +418,6 @@ def apply_corruption(
     severity: int,
     frost_dir: str = "data/frost_images",
 ) -> np.ndarray:
-    """
-    Apply a named corruption to a PIL Image and return a uint8 numpy array.
-
-    Args:
-        pil_img    : PIL Image, 32x32 RGB
-        corruption : any of the 16 corruption names in CORRUPTION_FNS
-        severity   : 1-5
-        frost_dir  : directory containing frost overlay images (frost only)
-
-    Returns:
-        uint8 numpy array, shape (32, 32, 3)
-    """
     if corruption not in CORRUPTION_FNS:
         raise ValueError(
             f"Unknown corruption '{corruption}'. "
@@ -508,7 +426,6 @@ def apply_corruption(
 
     fn = CORRUPTION_FNS[corruption]
 
-    # Some functions take PIL input directly, others take numpy
     if corruption in _PIL_INPUT:
         inp = pil_img
     else:
@@ -519,6 +436,4 @@ def apply_corruption(
     else:
         result = fn(inp, severity=severity)
 
-    # pixelate and jpeg_compression return float32 already clipped
-    # everything else returns float in [0,255]
     return np.clip(result, 0, 255).astype(np.uint8)

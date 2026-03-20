@@ -23,7 +23,7 @@ spec:
                       - Tesla-P100-PCIE-16GB
       containers:
         - name: shiftex
-          image: nayaksv/shiftex:latest
+          image: insert_image_here  # ← replace before running
           imagePullPolicy: Always
           command: ["/bin/bash", "launch.sh"]
           env:
