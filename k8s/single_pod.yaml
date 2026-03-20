@@ -8,6 +8,19 @@ spec:
   template:
     spec:
       restartPolicy: Never
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nvidia.com/gpu.product
+                    operator: NotIn
+                    values:
+                      - NVIDIA-GeForce-GTX-1080-Ti
+                      - NVIDIA-GeForce-GTX-1080
+                      - NVIDIA-GeForce-GTX-1070
+                      - NVIDIA-GeForce-GTX-1060
+                      - Tesla-P100-PCIE-16GB
       containers:
         - name: shiftex
           image: nayaksv/shiftex:latest
