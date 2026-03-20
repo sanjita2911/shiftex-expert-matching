@@ -12,6 +12,9 @@ docker buildx build --platform linux/amd64 -t YOUR_DOCKERHUB/shiftex:latest --pu
 # 3. Edit k8s/single_pod.yaml — replace these two placeholders:
 #    image: xyz/shiftex:latest   ← your image
 #    HF_TOKEN: REPLACE_WITH_YOUR_HF_TOKEN  ← your HuggingFace token
+
+#4. Launch.sh
+# Update your HuggingFace user_name
 ```
 
 ## Run Experiment

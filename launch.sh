@@ -80,13 +80,13 @@ api = HfApi()
 print('[launcher] Uploading expert_storage...')
 api.upload_folder(
     folder_path='/app/expert_storage',
-    repo_id='nayaksv/shiftex-results',
+    repo_id='user_id/shiftex-results',
     repo_type='model',
     path_in_repo='expert_storage',
     token=token,
 )
 print('[launcher] Upload complete!')
-print('[launcher] Results at: https://huggingface.co/nayaksv/shiftex-results')
+print('[launcher] Results at: https://huggingface.co/user_id/shiftex-results')
 "
 
 echo "[launcher] Experiment complete."
