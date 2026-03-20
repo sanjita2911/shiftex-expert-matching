@@ -37,6 +37,8 @@ spec:
               value: "5"
             - name: DATASET
               value: "cifar10c"
+            - name: HF_TOKEN
+              value: "REPLACE_WITH_YOUR_HF_TOKEN"  # ← replace before running
           resources:
             limits:
               nvidia.com/gpu: "4"
